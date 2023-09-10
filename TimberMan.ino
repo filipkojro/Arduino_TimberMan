@@ -1,77 +1,96 @@
-/*********************************************************************
-  This is an example for our Monochrome OLEDs based on SH110X drivers
-
-  This example is for a 128x64 size display using SPi to communicate
-  5 pins are required to interface 
-
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-
-  Written by Limor Fried/Ladyada  for Adafruit Industries.
-  BSD license, check license.txt for more information
-  All text above, and the splash screen must be included in any redistribution
-
-  SPi SH1106 modified by Rupert Hirst  12/09/21
-*********************************************************************/
-
-
-
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 
 
-#define OLED_MOSI     10
-#define OLED_CLK      8
-#define OLED_DC       7
-#define OLED_CS       5
-#define OLED_RST      9
+#define OLED_MOSI 10
+#define OLED_CLK 8
+#define OLED_DC 7
+#define OLED_CS 5
+#define OLED_RST 9
+
+#define L_BUTTON 4
+#define R_BUTTON 3
 
 
 // Create the OLED display
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128,OLED_MOSI, OLED_CLK, OLED_DC, OLED_RST, OLED_CS);
 
 
-#define NUMFLAKES 10
-#define XPOS 0
-#define YPOS 1
-#define DELTAY 2
-
-
-#define LOGO16_GLCD_HEIGHT 16
-#define LOGO16_GLCD_WIDTH  16
-static const unsigned char PROGMEM logo16_glcd_bmp[] =
-{ B00000000, B11000000,
-  B00000001, B11000000,
-  B00000001, B11000000,
-  B00000011, B11100000,
-  B11110011, B11100000,
-  B11111110, B11111000,
-  B01111110, B11111111,
-  B00110011, B10011111,
-  B00011111, B11111100,
-  B00001101, B01110000,
-  B00011011, B10100000,
-  B00111111, B11100000,
-  B00111111, B11110000,
-  B01111100, B11110000,
-  B01110000, B01110000,
-  B00000000, B00110000
+static const unsigned char PROGMEM branchLsprite[] = {
+  0b00000111, 0b11111110, 0b00000000, 
+  0b00011111, 0b11111111, 0b11111111, 
+  0b00111111, 0b11111111, 0b11111111, 
+  0b01111111, 0b00000000, 0b00001111, 
+  0b01110000, 0b00000000, 0b00000001, 
+  0b01100000, 0b00000000, 0b00000000, 
+  0b01000000, 0b00000000, 0b00000000, 
+  0b01000000, 0b00000000, 0b00000000
 };
 
+static const unsigned char PROGMEM branchRsprite[] = {
+  0b00000000, 0b01111111, 0b11100000,
+  0b11111111, 0b11111111, 0b11111000,
+  0b11111111, 0b11111111, 0b11111100,
+  0b11110000, 0b00000000, 0b11111110,
+  0b10000000, 0b00000000, 0b00001110,
+  0b00000000, 0b00000000, 0b00000110,
+  0b00000000, 0b00000000, 0b00000010,
+  0b00000000, 0b00000000, 0b00000010
+};
+
+static const unsigned char PROGMEM jack[] = {
+  0b00011000, 
+  0b00111100, 
+  0b00111100, 
+  0b00011000, 
+  0b01111110, 
+  0b11111111, 
+  0b11011011, 
+  0b10011001, 
+  0b00011000, 
+  0b00011000, 
+  0b00011000, 
+  0b00111100, 
+  0b00111100, 
+  0b01100110, 
+  0b01100110, 
+  0b01000010, 
+};
 
 //if tree on a given idex is 0 log should be on a left, 1 right
 //every user input 0 log are overwritten by 1, 1 by 2, 2 by 3
 //3 in random
 bool tree[4];
 
+unsigned long duration;
+
+bool lastStateL = false;
+bool lastStateR = false;
+
+int sameSite = 0;
+bool lastSite;
+
+bool playerSite = 0;
+
+char button;
+
+bool alive = false;
+
+float health = 64;
+float depletion = 1;
+
+int lastScore = 0;
+
 
 void setup()   {
   Serial.begin(9600);
 
   //display.setContrast (0); // dim display
+
+  pinMode(L_BUTTON, INPUT);
+  pinMode(R_BUTTON, INPUT);
 
   // Start OLED
   display.begin(0, true); // we dont use the i2c address but we will reset!
@@ -85,370 +104,132 @@ void setup()   {
   // internally, this will display the splashscreen.
   display.display();
   delay(2000);
-
-
-/*
-  // Clear the buffer.
-  display.clearDisplay();
-
-  
-
-  // draw a single pixel
-  display.drawPixel(10, 10, SH110X_WHITE);
-  // Show the display buffer on the hardware.
-  // NOTE: You _must_ call display after making any drawing commands
-  // to make them visible on the display hardware!
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-*/
-/*
-  for (int i = 0; i < display.height(); i++){
-    display.clearDisplay();
-
-    display.drawLine(0, 0, 64, i, SH110X_WHITE);
-
-    display.display();
-
-    delay(1);
-  }
-*/
-  /*
-  delay(20000);
-
-  // draw many lines
-  testdrawline();
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-
-  // draw rectangles
-  testdrawrect();
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-
-  // draw multiple rectangles
-  testfillrect();
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-
-  // draw mulitple circles
-  testdrawcircle();
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-
-  // draw a SH110X_WHITE circle, 10 pixel radius
-  display.fillCircle(display.width() / 2, display.height() / 2, 10, SH110X_WHITE);
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-
-  testdrawroundrect();
-  delay(2000);
-  display.clearDisplay();
-
-  testfillroundrect();
-  delay(2000);
-  display.clearDisplay();
-
-  testdrawtriangle();
-  delay(2000);
-  display.clearDisplay();
-
-  testfilltriangle();
-  delay(2000);
-  display.clearDisplay();
-
-  // draw the first ~12 characters in the font
-  testdrawchar();
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-
-
-  // text display tests
-  display.setTextSize(1);
-  display.setTextColor(SH110X_WHITE);
-  display.setCursor(0, 0);
-  display.println("Failure is always an option");
-  display.setTextColor(SH110X_BLACK, SH110X_WHITE); // 'inverted' text
-  display.println(3.141592);
-  display.setTextSize(2);
-  display.setTextColor(SH110X_WHITE);
-  display.print("0x"); display.println(0xDEADBEEF, HEX);
-  display.display();
-  delay(2000);
-  display.clearDisplay();
-
-  // miniature bitmap display
-  display.drawBitmap(30, 16,  logo16_glcd_bmp, 16, 16, 1);
-  display.display();
-  delay(1);
-
-  // invert the display
-  display.invertDisplay(true);
-  delay(1000);
-  display.invertDisplay(false);
-  delay(1000);
-  display.clearDisplay();
-
-  // draw a bitmap icon and 'animate' movement
-  testdrawbitmap(logo16_glcd_bmp, LOGO16_GLCD_HEIGHT, LOGO16_GLCD_WIDTH);
-  */
-
-  treeInit();
-  display.clearDisplay();
-  display.fillRect(22, 0, 20, 96, SH110X_WHITE);
-  display.fillRect(30, 96, 4, 32, SH110X_WHITE);
 }
-
-unsigned long duration;
 
 void loop() {
 
-  duration = millis();
+  display.clearDisplay();
 
-  //clearing last branches
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+  display.setCursor(0, 0);
 
-  for(int i = 0; i < 4; i++){
-    //Serial.println(tree[i]);
-    display.drawBitmap(4 + (38 * tree[i]),96 - (32 * i), logo16_glcd_bmp, 16, 16, SH110X_BLACK);
-  }
+  display.println("last best");
+  display.println(lastScore);
+  display.println();
+  display.println("start?");
 
-
-
-  nextBranch();
-
-  
-  for(int i = 0; i < 4; i++){
-    //Serial.println(tree[i]);
-    display.drawBitmap(4 + (38 * tree[i]),96 - (32 * i), logo16_glcd_bmp, 16, 16, SH110X_WHITE);
-  }
-
-  
   display.display();
-  
-  
 
-  Serial.println(millis() - duration);
+  if(controll() != 'N'){
+    alive = true;
+    health = 64;
+    depletion = 1;
+    display.clearDisplay();
 
-  
+    treeInit();
+    display.clearDisplay();
+    display.fillRect(24, 0, 16, 96, SH110X_WHITE);
+    display.fillRect(30, 96, 4, 32, SH110X_WHITE);
+  }
 
-  //controll();
+  while (alive) {
+    duration = millis();
 
-  //delay(1000);
+    //clearing last branches
+    for(int i = 0; i < 3; i++){
+      if(tree[i]) display.drawBitmap(40, 32 * i + 10, branchRsprite, 24, 8, SH110X_BLACK);
+      else display.drawBitmap(0, 32 * i + 10, branchLsprite, 24, 8, SH110X_BLACK);
+    }
+
+    display.drawBitmap(32 * playerSite + 11,104, jack, 8, 16, SH110X_BLACK);
+
+    health -= depletion;
+
+    button = controll();
+
+    if(button == 'R' && tree[2] == 1){
+      alive = false;
+    }
+    if(button == 'L' && tree[2] == 0){
+      alive = false;
+    }
+
+    if(button == 'R' && tree[2] == 0){
+      nextBranch();
+      playerSite = 1;
+
+      health += 5;
+      depletion += 0.01;
+    }
+    if(button == 'L' && tree[2] == 1){
+      nextBranch();
+      playerSite = 0;
+
+      health += 5;
+      depletion += 0.01;
+    }
+
+    if(health > 64)health = 64;
+    if(health <= 0)alive = false;
+    if(!alive)if((depletion - 1) * 100 + 1 > lastScore)lastScore = (depletion - 1) * 100 + 1;
+
+    display.drawBitmap(32 * playerSite + 11,104, jack, 8, 16, SH110X_WHITE);
+
+    for(int i = 0; i < 3; i++){
+      if(tree[i]) display.drawBitmap(40, 32 * i + 10, branchRsprite, 24, 8, SH110X_WHITE);
+      else display.drawBitmap(0, 32 * i + 10, branchLsprite, 24, 8, SH110X_WHITE);
+    }
+
+
+    display.writeFastHLine(0, 127, health, SH110X_WHITE);
+    display.writeFastHLine(health, 127, 64 - health, SH110X_BLACK);
+
+    display.display();
+
+
+    Serial.print(millis() - duration);
+    Serial.print(" - ");
+    Serial.print(lastScore);
+    Serial.print(" - ");
+    Serial.println((depletion - 1) * 100);
+  }
 }
 
 void treeInit(){
-  for(int i = 0; i < 4; i++){
+  for(int i = 0; i < 3; i++){
     tree[i] = random(2);
 
     delay(random(5));
   }
+  lastSite = tree[0];
 }
 
 void nextBranch(){
-  for(int i = 0; i < 3; i++){
-    tree[i] = tree[i + 1];
+  for(int i = 2; i >= 0; i--){
+    tree[i] = tree[i - 1];
   }
-  tree[3] = random(2);
+  tree[0] = random(2);
+
+  if(tree[0] == lastSite)sameSite++;
+  else sameSite = 0;
+
+  if(sameSite >= 3) tree[0] = !tree[0];
+
+  lastSite = tree[0];
 }
 
-void controll(){
-  if(Serial.readString() == 'l')Serial.println("LEFT");
-  
-  
-}
+char controll(){
+  char command = 'N';
 
+  bool nextStateL = digitalRead(L_BUTTON);
+  bool nextStateR = digitalRead(R_BUTTON);
 
+  if(! nextStateL && lastStateL)command = 'L';
+  if(! nextStateR && lastStateR)command = 'R';
 
+  lastStateL = nextStateL;
+  lastStateR = nextStateR;
 
-
-
-
-
-
-
-
-
-
-void testdrawbitmap(const uint8_t *bitmap, uint8_t w, uint8_t h) {
-  uint8_t icons[NUMFLAKES][3];
-
-  // initialize
-  for (uint8_t f = 0; f < NUMFLAKES; f++) {
-    icons[f][XPOS] = random(display.width());
-    icons[f][YPOS] = 0;
-    icons[f][DELTAY] = random(5) + 1;
-
-    Serial.print("x: ");
-    Serial.print(icons[f][XPOS], DEC);
-    Serial.print(" y: ");
-    Serial.print(icons[f][YPOS], DEC);
-    Serial.print(" dy: ");
-    Serial.println(icons[f][DELTAY], DEC);
-  }
-
-  while (1) {
-    // draw each icon
-    for (uint8_t f = 0; f < NUMFLAKES; f++) {
-      display.drawBitmap(icons[f][XPOS], icons[f][YPOS], bitmap, w, h, SH110X_WHITE);
-    }
-    display.display();
-    delay(200);
-
-    // then erase it + move it
-    for (uint8_t f = 0; f < NUMFLAKES; f++) {
-      display.drawBitmap(icons[f][XPOS], icons[f][YPOS], bitmap, w, h, SH110X_BLACK);
-      // move it
-      icons[f][YPOS] += icons[f][DELTAY];
-      // if its gone, reinit
-      if (icons[f][YPOS] > display.height()) {
-        icons[f][XPOS] = random(display.width());
-        icons[f][YPOS] = 0;
-        icons[f][DELTAY] = random(5) + 1;
-      }
-    }
-  }
-}
-
-
-void testdrawchar(void) {
-  display.setTextSize(1);
-  display.setTextColor(SH110X_WHITE);
-  display.setCursor(0, 0);
-
-  for (uint8_t i = 0; i < 168; i++) {
-    if (i == '\n') continue;
-    display.write(i);
-    if ((i > 0) && (i % 21 == 0))
-      display.println();
-  }
-  display.display();
-  delay(1);
-}
-
-void testdrawcircle(void) {
-  for (int16_t i = 0; i < display.height(); i += 2) {
-    display.drawCircle(display.width() / 2, display.height() / 2, i, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-}
-
-void testfillrect(void) {
-  uint8_t color = 1;
-  for (int16_t i = 0; i < display.height() / 2; i += 3) {
-    // alternate colors
-    display.fillRect(i, i, display.width() - i * 2, display.height() - i * 2, color % 2);
-    display.display();
-    delay(1);
-    color++;
-  }
-}
-
-void testdrawtriangle(void) {
-  for (int16_t i = 0; i < min(display.width(), display.height()) / 2; i += 5) {
-    display.drawTriangle(display.width() / 2, display.height() / 2 - i,
-                         display.width() / 2 - i, display.height() / 2 + i,
-                         display.width() / 2 + i, display.height() / 2 + i, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-}
-
-void testfilltriangle(void) {
-  uint8_t color = SH110X_WHITE;
-  for (int16_t i = min(display.width(), display.height()) / 2; i > 0; i -= 5) {
-    display.fillTriangle(display.width() / 2, display.height() / 2 - i,
-                         display.width() / 2 - i, display.height() / 2 + i,
-                         display.width() / 2 + i, display.height() / 2 + i, SH110X_WHITE);
-    if (color == SH110X_WHITE) color = SH110X_BLACK;
-    else color = SH110X_WHITE;
-    display.display();
-    delay(1);
-  }
-}
-
-void testdrawroundrect(void) {
-  for (int16_t i = 0; i < display.height() / 2 - 2; i += 2) {
-    display.drawRoundRect(i, i, display.width() - 2 * i, display.height() - 2 * i, display.height() / 4, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-}
-
-void testfillroundrect(void) {
-  uint8_t color = SH110X_WHITE;
-  for (int16_t i = 0; i < display.height() / 2 - 2; i += 2) {
-    display.fillRoundRect(i, i, display.width() - 2 * i, display.height() - 2 * i, display.height() / 4, color);
-    if (color == SH110X_WHITE) color = SH110X_BLACK;
-    else color = SH110X_WHITE;
-    display.display();
-    delay(1);
-  }
-}
-
-void testdrawrect(void) {
-  for (int16_t i = 0; i < display.height() / 2; i += 2) {
-    display.drawRect(i, i, display.width() - 2 * i, display.height() - 2 * i, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-}
-
-void testdrawline() {
-  for (int16_t i = 0; i < display.width(); i += 4) {
-    display.drawLine(0, 0, i, display.height() - 1, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  for (int16_t i = 0; i < display.height(); i += 4) {
-    display.drawLine(0, 0, display.width() - 1, i, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  delay(250);
-
-  display.clearDisplay();
-  for (int16_t i = 0; i < display.width(); i += 4) {
-    display.drawLine(0, display.height() - 1, i, 0, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  for (int16_t i = display.height() - 1; i >= 0; i -= 4) {
-    display.drawLine(0, display.height() - 1, display.width() - 1, i, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  delay(250);
-
-  display.clearDisplay();
-  for (int16_t i = display.width() - 1; i >= 0; i -= 4) {
-    display.drawLine(display.width() - 1, display.height() - 1, i, 0, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  for (int16_t i = display.height() - 1; i >= 0; i -= 4) {
-    display.drawLine(display.width() - 1, display.height() - 1, 0, i, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  delay(250);
-
-  display.clearDisplay();
-  for (int16_t i = 0; i < display.height(); i += 4) {
-    display.drawLine(display.width() - 1, 0, 0, i, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  for (int16_t i = 0; i < display.width(); i += 4) {
-    display.drawLine(display.width() - 1, 0, i, display.height() - 1, SH110X_WHITE);
-    display.display();
-    delay(1);
-  }
-  delay(250);
+  return command;
 }
